@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Socket.io Test Client</title>
+  <style>
+    body { font-family: monospace; padding: 20px; background: #1e1e1e; color: #ddd; }
+    input { padding: 6px; margin: 4px; width: 400px; background: #2d2d2d; color: #fff; border: 1px solid #444; }
+    button { padding: 6px 14px; margin: 4px; background: #0066cc; color: white; border: none; cursor: pointer; }
+    button:hover { background: #0080ff; }
+    #log { background: #000; padding: 12px; height: 400px; overflow-y: auto; margin-top: 10px; border: 1px solid #444; }
+    .event { color: #4ec9b0; }
+    .error { color: #f48771; }
+    .info { color: #dcdcaa; }
+    .sent { color: #9cdcfe; }
+  </style>
+</head>
+<body>
+  <h2>Socket.io Test — Multi-Tenant SaaS</h2>
+
+  <div>
+    <label>JWT Token:</label><br>
+    <input id="token" placeholder="paste JWT from /login response">
+    <button onclick="connect()">Connect</button>
+    <button onclick="disconnect()">Disconnect</button>
+  </div>
+
+  <div>
+    <label>Workspace ID:</label><br>
+    <input id="workspaceId" placeholder="workspace _id">
+    <button onclick="joinWorkspace()">Join Workspace</button>
+    <button onclick="leaveWorkspace()">Leave Workspace</button>
+  </div>
+
+  <h3>Event Log</h3>
+  <div id="log"></div>
+
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+  <script>
+    let socket;
+    const log = document.getElementById("log");
+
+    const write = (msg, cls = "info") => {
+      const t = new Date().toLocaleTimeString();
+      log.innerHTML += `<div class="${cls}">[${t}] ${msg}</div>`;
+      log.scrollTop = log.scrollHeight;
+    };
+
+    function connect() {
+      const token = document.getElementById("token").value.trim();
+      if (!token) return write("No token", "error");
+
+      socket = io("http://localhost:5000", { auth: { token } });
+
+      socket.on("connect", () => write(`Connected — socket id ${socket.id}`, "event"));
+      socket.on("connect_error", (err) => write(`Connect error: ${err.message}`, "error"));
+      socket.on("disconnect", () => write("Disconnected", "info"));
+
+      socket.on("task-created", (task) => write(`TASK CREATED: ${JSON.stringify(task)}`, "event"));
+      socket.on("task-updated", (task) => write(`TASK UPDATED: ${JSON.stringify(task)}`, "event"));
+      socket.on("task-deleted", (data) => write(`TASK DELETED: ${JSON.stringify(data)}`, "event"));
+    }
+
+    function disconnect() {
+      if (socket) socket.disconnect();
+    }
+
+    function joinWorkspace() {
+      const id = document.getElementById("workspaceId").value.trim();
+      if (!socket || !id) return write("Connect and enter workspace id first", "error");
+      write(`Joining workspace ${id}...`, "sent");
+      socket.emit("join-workspace", id, (res) => {
+        if (res?.ok) write(`Joined workspace ${id}`, "event");
+        else write(`Join failed: ${res?.error}`, "error");
+      });
+    }
+
+    function leaveWorkspace() {
+      const id = document.getElementById("workspaceId").value.trim();
+      if (!socket || !id) return;
+      socket.emit("leave-workspace", id);
+      write(`Left workspace ${id}`, "sent");
+    }
+  </script>
+</body>
+</html>

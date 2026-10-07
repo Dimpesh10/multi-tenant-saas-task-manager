@@ -1,0 +1,14 @@
+# Only backend/ and frontend/ are tracked; everything else at root stays local
+/*
+!/.gitignore
+!/backend/
+!/frontend/
+
+# No markdown files anywhere
+*.md
+
+# Secrets & deps
+.env
+node_modules/
+dist/
+*.log
